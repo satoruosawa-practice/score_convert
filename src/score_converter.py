@@ -1,9 +1,9 @@
 import turtle
 from bs4 import BeautifulSoup
 
-def extractMusic(soup):
+def extractNotes(soup):
     """ Extract music data from xml file. """
-    pitch_list = []
+    note_list = []
     cur_time = 0 # Current time
     tmp_duration = 0
     # parse
@@ -15,17 +15,20 @@ def extractMusic(soup):
                 if not nb.chord: # 和音でなければ
                     cur_time += tmp_duration
                 if nb.pitch: # 音符
-                    pitch_list.append([cur_time,
-                                       nb.pitch.octave.string,
-                                       nb.pitch.step.string,
-                                       nb.accidental.string])
+                    note_list.append([cur_time,
+                                      nb.duration.string,
+                                      nb.pitch.octave.string,
+                                      nb.pitch.step.string,
+                                      nb.accidental.string])
                 if nb.rest: # 休符
-                    pass
+                    note_list.append([cur_time, nb.duration.string, None])
                 if nb.duration: # 装飾音はdurationないので飛ばす
                     tmp_duration = int(nb.duration.string)
-    return pitch_list
+    return note_list
 
 def pitchId(pitch):
+    if pitch[0] == None:
+        return None
     """ Calculate absolute height of given pitch. """
     if pitch[2] == "sharp":
         code_list = ["", "c", "", "d", "", "", "f", "", "g", "", "a", ""]
@@ -42,6 +45,8 @@ def pitchId(pitch):
     return p_id
 
 def freq(pitch_id):
+    if pitch_id == None:
+        return None
     freq_list = [
         27.5, 29.135, 30.868,
         32.703, 34.648, 36.708, 38.891, 41.203, 43.654,
@@ -67,7 +72,36 @@ soup = BeautifulSoup(open(xml_name, 'r').read(), "html.parser")
 
 parts = soup.find_all('part')
 
-part = extractMusic(parts[0])
+""" for eupatorium_fortunel.ino """
 
-for p in part:
-    print(freq(pitchId(p[1:])))
+seq_id = 1
+part = extractNotes(parts[seq_id])
+
+print('start generate')
+
+gen_file = open('./bin/generate.txt', 'w')
+gen_file.write('switch (sequence_no_[' + str(seq_id) + ']) {\n')
+case_id = 0
+fin_time = 0
+for i, p in enumerate(part):
+    if case_id == 0:
+        gen_file.write('  case ' + str(case_id) + ': {\n')
+    else:
+        gen_file.write('  } case ' + str(case_id) + ': {\n')
+    if p[2] != None:
+        str_freq = str(round(freq(pitchId(p[2:]))))
+        gen_file.write('    setBioFreq(' + str(seq_id) + ', ' + str_freq + 'l, 10);\n')
+    else:
+        gen_file.write('    setBioFreq(' + str(seq_id) + ', 500l, 0);\n')
+    fin_time += int(p[1]) * 400
+    gen_file.write('    if (now > ' + str(fin_time) + 'l) { sequence_no_[' + str(seq_id) + ']++; }\n')
+    gen_file.write('    break;\n')
+    if i == len(part) - 1:
+      gen_file.write('  } default:\n')
+      gen_file.write('    setBioFreq(' + str(seq_id) + ', 500l, 0);\n')
+      gen_file.write('    break;\n}')
+    case_id += 1
+
+gen_file.flush()
+gen_file.close()
+print('end generate')
