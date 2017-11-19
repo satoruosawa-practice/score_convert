@@ -74,13 +74,14 @@ parts = soup.find_all('part')
 
 """ for eupatorium_fortunel.ino """
 
-seq_id = 1
-part = extractNotes(parts[seq_id])
+part_id = 0
+part = extractNotes(parts[part_id])
 
 print('start generate')
 
 gen_file = open('./bin/generate.txt', 'w')
-gen_file.write('switch (sequence_no_[' + str(seq_id) + ']) {\n')
+pin_id = '0'
+gen_file.write('switch (sequence_no_[' + pin_id + ']) {\n')
 case_id = 0
 fin_time = 0
 for i, p in enumerate(part):
@@ -90,15 +91,15 @@ for i, p in enumerate(part):
         gen_file.write('  } case ' + str(case_id) + ': {\n')
     if p[2] != None:
         str_freq = str(round(freq(pitchId(p[2:]))))
-        gen_file.write('    setBioFreq(' + str(seq_id) + ', ' + str_freq + 'l, 10);\n')
+        gen_file.write('    setBioFreq(' + pin_id + ', ' + str_freq + 'l, 10);\n')
     else:
-        gen_file.write('    setBioFreq(' + str(seq_id) + ', 500l, 0);\n')
+        gen_file.write('    setBioFreq(' + pin_id + ', 500l, 0);\n')
     fin_time += int(p[1]) * 400
-    gen_file.write('    if (now > ' + str(fin_time) + 'l) { sequence_no_[' + str(seq_id) + ']++; }\n')
+    gen_file.write('    if (now > ' + str(fin_time) + 'l) { sequence_no_[' + pin_id + ']++; }\n')
     gen_file.write('    break;\n')
     if i == len(part) - 1:
       gen_file.write('  } default:\n')
-      gen_file.write('    setBioFreq(' + str(seq_id) + ', 500l, 0);\n')
+      gen_file.write('    setBioFreq(' + pin_id + ', 500l, 0);\n')
       gen_file.write('    break;\n}')
     case_id += 1
 
