@@ -3,9 +3,16 @@ from bs4 import BeautifulSoup
 
 def extractNotes(soup):
     """ Extract music data from xml file. """
+    # ["start total duration",
+    #  "duration",
+    #  "octave",
+    #  "key",
+    #  "accidental",
+    #  "tie"]
     note_list = []
     cur_time = 0 # Current time
     tmp_duration = 0
+    tie = None
     # parse
     for m in soup.find_all("measure"):
         for nb in m.find_all({"note", "backup"}):
@@ -18,13 +25,21 @@ def extractNotes(soup):
                     accidental = "natural"
                     if nb.accidental:
                         accidental = nb.accidental.string
+                    if nb.tie:
+                        tie = nb.tie.get('type')
+                    elif tie == 'start':
+                        tie = 'ongoing'
+                    elif tie == 'stop':
+                        tie = None
                     note_list.append([cur_time,
                                       nb.duration.string,
                                       nb.pitch.octave.string,
                                       nb.pitch.step.string,
-                                      accidental])
+                                      accidental,
+                                      tie])
                 if nb.rest: # 休符
-                    note_list.append([cur_time, nb.duration.string, None])
+                    note_list.append([cur_time, nb.duration.string,
+                                      None, None, None, None])
                 if nb.duration: # 装飾音はdurationないので飛ばす
                     tmp_duration = int(nb.duration.string)
     return note_list
@@ -87,18 +102,26 @@ gen_file.write('switch (sequence_no_[' + pin_id + ']) {\n')
 case_id = 0
 fin_time = 0
 tempo = 80  # set tempo
+volume = '10'
 singleDuration = 60000 / tempo / 2
+fade_out = 100  # int
 for i, p in enumerate(part):
     if case_id == 0:
         gen_file.write('  case ' + str(case_id) + ': {\n')
     else:
         gen_file.write('  } case ' + str(case_id) + ': {\n')
+    fin_time += int(p[1]) * singleDuration
     if p[2] != None:
-        str_freq = str(round(freq(pitchId(p[2:]))))
-        gen_file.write('    setBioFreq(' + pin_id + ', ' + str_freq + 'l, 10);\n')
+        if p[5] == 'start' or p[5] == 'ongoing':
+            str_freq = str(round(freq(pitchId(p[2:]))))
+            gen_file.write('    setBioFreq(' + pin_id + ', ' + str_freq + 'l, ' + volume + ');\n')
+        else:
+            str_freq = str(round(freq(pitchId(p[2:]))))
+            gen_file.write('    long t = constrain(now - ' + str(round(fin_time - fade_out))+ 'l, 0l, ' + str(fade_out) + 'l);\n')
+            gen_file.write('    int value = ease_in_cubicL(t, 0l, ' + volume + ', ' + str(fade_out) + 'l);\n')
+            gen_file.write('    setBioFreq(' + pin_id + ', ' + str_freq + 'l, ' + volume + ' - value);\n')
     else:
         gen_file.write('    setBioFreq(' + pin_id + ', 500l, 0);\n')
-    fin_time += int(p[1]) * singleDuration
     gen_file.write('    if (now > ' + str(round(fin_time)) + 'l) { sequence_no_[' + pin_id + ']++; }\n')
     gen_file.write('    break;\n')
     if i == len(part) - 1:
