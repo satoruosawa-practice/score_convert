@@ -15,11 +15,14 @@ def extractNotes(soup):
                 if not nb.chord: # 和音でなければ
                     cur_time += tmp_duration
                 if nb.pitch: # 音符
+                    accidental = "natural"
+                    if nb.accidental:
+                        accidental = nb.accidental.string
                     note_list.append([cur_time,
                                       nb.duration.string,
                                       nb.pitch.octave.string,
                                       nb.pitch.step.string,
-                                      nb.accidental.string])
+                                      accidental])
                 if nb.rest: # 休符
                     note_list.append([cur_time, nb.duration.string, None])
                 if nb.duration: # 装飾音はdurationないので飛ばす
@@ -67,23 +70,24 @@ def freq(pitch_id):
     freq = freq_list[pitch_id]
     return freq
 
-xml_name = './src/data/data.xml'
+xml_name = './src/data/etude_for_2_001.xml'
 soup = BeautifulSoup(open(xml_name, 'r').read(), "html.parser")
 
 parts = soup.find_all('part')
 
-""" for eupatorium_fortunel.ino """
-
-part_id = 0
+""" for Arduino """
+part_id = 0  # set the part id to use
 part = extractNotes(parts[part_id])
 
 print('start generate')
 
 gen_file = open('./bin/generate.txt', 'w')
-pin_id = '0'
+pin_id = '0'  # set arduino pin id
 gen_file.write('switch (sequence_no_[' + pin_id + ']) {\n')
 case_id = 0
 fin_time = 0
+tempo = 80  # set tempo
+singleDuration = 60000 / tempo / 2
 for i, p in enumerate(part):
     if case_id == 0:
         gen_file.write('  case ' + str(case_id) + ': {\n')
@@ -94,8 +98,8 @@ for i, p in enumerate(part):
         gen_file.write('    setBioFreq(' + pin_id + ', ' + str_freq + 'l, 10);\n')
     else:
         gen_file.write('    setBioFreq(' + pin_id + ', 500l, 0);\n')
-    fin_time += int(p[1]) * 400
-    gen_file.write('    if (now > ' + str(fin_time) + 'l) { sequence_no_[' + pin_id + ']++; }\n')
+    fin_time += int(p[1]) * singleDuration
+    gen_file.write('    if (now > ' + str(round(fin_time)) + 'l) { sequence_no_[' + pin_id + ']++; }\n')
     gen_file.write('    break;\n')
     if i == len(part) - 1:
       gen_file.write('  } default:\n')
