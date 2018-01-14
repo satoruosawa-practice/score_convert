@@ -85,25 +85,26 @@ def freq(pitch_id):
     freq = freq_list[pitch_id]
     return freq
 
-xml_name = './src/data/etude_for_2_001.xml'
+xml_name = './src/data/etude_for_2_005.xml'
 soup = BeautifulSoup(open(xml_name, 'r').read(), "html.parser")
 
 parts = soup.find_all('part')
 
 """ for Arduino """
-part_id = 0  # set the part id to use
+part_id = 1  # set the part id to use
 part = extractNotes(parts[part_id])
 
 print('start generate')
 
 gen_file = open('./bin/generate.txt', 'w')
-pin_id = '0'  # set arduino pin id
+pin_id = '1'  # set arduino pin id
 gen_file.write('switch (sequence_no_[' + pin_id + ']) {\n')
 case_id = 0
 fin_time = 0
-tempo = 80  # set tempo
-volume = '10'
-singleDuration = 60000 / tempo / 2
+tempo = int(soup.find('sound').get('tempo'))  # or directry define tempo
+volume = '30'  # set volume
+divisions = parts[part_id].find("measure").attributes.divisions.string
+singleDuration = 60000 / tempo / int(divisions)
 fade_out = 100  # int
 for i, p in enumerate(part):
     if case_id == 0:
