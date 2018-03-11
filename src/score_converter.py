@@ -38,8 +38,13 @@ def extractNotes(soup):
                                       accidental,
                                       tie])
                 if nb.rest: # 休符
-                    note_list.append([cur_time, nb.duration.string,
-                                      None, None, None, None])
+                    if len(note_list) > 0:
+                        last_note = note_list[len(note_list) - 1]
+                        if last_note[2] == None:
+                            rest_duration = int(last_note[1]) + int(nb.duration.string)
+                            last_note[1] = str(rest_duration)
+                            continue
+                    note_list.append([cur_time, nb.duration.string, None, None, None, None])
                 if nb.duration: # 装飾音はdurationないので飛ばす
                     tmp_duration = int(nb.duration.string)
     return note_list
@@ -85,13 +90,13 @@ def freq(pitch_id):
     freq = freq_list[pitch_id]
     return freq
 
-xml_name = './src/data/etude_for_2_005.xml'
+xml_name = './src/data/etude_for_2_No_012_for4.xml'
 soup = BeautifulSoup(open(xml_name, 'r').read(), "html.parser")
 
 parts = soup.find_all('part')
 
 """ for Arduino """
-part_id = 1  # set the part id to use
+part_id = 3  # set the part id to use
 part = extractNotes(parts[part_id])
 
 print('start generate')
